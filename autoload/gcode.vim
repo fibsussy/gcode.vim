@@ -820,3 +820,41 @@ function! gcode#hover() abort
     call luaeval("vim.lsp.util.open_floating_preview(_A, 'markdown', { focusable = false })", split(l:result, '\n'))
   endif
 endfunction
+
+function! gcode#math() abort
+  let l:input = input('Enter axis and operation (e.g. Y+69.42, X-5.1, Z*2): ')
+  if empty(l:input)
+    return
+  endif
+
+  if l:input !~? '^([A-Z])([+/*%-])([%d%.]+)$'
+    echohl ErrorMsg
+    echo 'Format must be: AXISOPERATION (e.g. Y+69.42)'
+    echo 'First letter: Axis (A-Z)'
+    echo 'Second char: + - * /'
+    echo 'Rest: Number'
+    echohl None
+    return
+  endif
+
+  let [l:axis, l:op, l:num] = matchlist(l:input, '^([A-Z])([+/*%-])([%d%.]+)$')[1:3]
+  let l:num_val = str2float(l:num)
+
+  if !&modifiable
+    echohl ErrorMsg
+    echo 'Buffer is not modifiable. Cannot make changes.'
+    echohl None
+    return
+  endif
+
+  let l:line1 = line("'<")
+  let l:line2 = line("'>")
+
+  if l:line1 == l:line2 && l:line2 == 0
+    let l:cmd = printf('%%%ss/%s\zs\(-\?\d\+\.\d\+\|\d\+\)/\=substitute(printf(''%%0.4f'', eval(submatch(0)) %s %f), ''\.0\+$'', '''', '''')/g', l:axis, l:op, l:num_val)
+  else
+    let l:cmd = printf('%d,%ds/%s\zs\(-\?\d\+\.\d\+\|\d\+\)/\=substitute(printf(''%%0.4f'', eval(submatch(0)) %s %f), ''\.0\+$'', '''', '''')/g', l:line1, l:line2, l:axis, l:op, l:num_val)
+  endif
+
+  execute l:cmd
+endfunction
